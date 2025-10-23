@@ -85,7 +85,11 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 async def _render_text(gs: GuildState) -> str:
-    return gs.template.format(days=gs.days)
+    # choose singular or plural based on value
+    day_word = "DAY" if gs.days == 1 else "DAYS"
+    # allow the template to use both {days} and {day_word}
+    return gs.template.format(days=gs.days, day_word=day_word)
+
 
 async def _update_display(guild: discord.Guild, gs: GuildState):
     if gs.mode == "message":
