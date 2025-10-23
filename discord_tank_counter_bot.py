@@ -85,10 +85,16 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 async def _render_text(gs: GuildState) -> str:
-    # choose singular or plural based on value
+    # singular/plural
     day_word = "DAY" if gs.days == 1 else "DAYS"
-    # allow the template to use both {days} and {day_word}
-    return gs.template.format(days=gs.days, day_word=day_word)
+
+    # preserve the same case as in template
+    if "{day_word}" in gs.template:
+        return gs.template.format(days=gs.days, day_word=day_word)
+    elif "day" in gs.template and "DAY" not in gs.template:
+        return gs.template.format(days=gs.days, day_word=day_word.lower())
+    else:
+        return gs.template.format(days=gs.days, day_word=day_word)
 
 
 async def _update_display(guild: discord.Guild, gs: GuildState):
