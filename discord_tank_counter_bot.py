@@ -85,25 +85,30 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 async def _render_text(gs: GuildState) -> str:
-    # base singular/plural
+    """Render the display text with smart singular/plural and case control.
+    Placeholders supported:
+      - {day_word}   → lowercase ("day"/"days")
+      - {DAY_WORD}   → UPPERCASE ("DAY"/"DAYS")
+      - {Day_Word}   → Title Case ("Day"/"Days")
+    Backward-compat: if none of the above are present, we'll just format {days}
+    and, when gs.days == 1, replace DAYS→DAY / days→day in the output.
+    """
     base = "day" if gs.days == 1 else "days"
+    tpl = gs.template
 
-    # if template uses {day_word}, match the template’s style
-    if "{day_word}" in gs.template:
-        t = gs.template
-        if t.isupper() or " DAY " in t or " DAYS " in t:
-            word = base.upper()
-        elif t.istitle():
-            word = base.capitalize()
-        else:
-            word = base  # lowercase
-        return gs.template.format(days=gs.days, day_word=word)
+    if ("{day_word}" in tpl) or ("{DAY_WORD}" in tpl) or ("{Day_Word}" in tpl):
+        return tpl.format(
+            days=gs.days,
+            day_word=base,
+            DAY_WORD=base.upper(),
+            Day_Word=base.capitalize(),
+        )
 
-    # backward-compat: no {day_word} → just {days}, and tweak if singular
-    rendered = gs.template.format(days=gs.days)
+    rendered = tpl.format(days=gs.days)
     if gs.days == 1:
         rendered = rendered.replace("DAYS", "DAY").replace("days", "day")
     return rendered
+
 
 async def _update_display(guild: discord.Guild, gs: GuildState):
     if gs.mode == "message":
