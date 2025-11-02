@@ -230,16 +230,15 @@ async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
 
     try:
-        # (re)attach the /tank group to the tree in case it was cleared earlier
-        # tank is defined above as: tank = Tank(); tree.add_command(tank)
-        # calling add_command again is idempotent
-        tree.add_command(tank)
+        # ensure the /tank group is attached exactly once
+        if not any(cmd.name == "tank" for cmd in tree.get_commands()):
+            tree.add_command(tank)
 
-        # 1) sync GLOBAL commands to the application (updates/deletes old globals)
+        # 1) sync globals (updates/deletes old global commands)
         globals_synced = await tree.sync()
         print(f"🌐 synced {len(globals_synced)} global commands")
 
-        # 2) copy those globals into each guild for instant availability, then sync
+        # 2) copy to each guild for instant availability
         for g in client.guilds:
             tree.copy_global_to(guild=g)
             guild_synced = await tree.sync(guild=g)
@@ -248,7 +247,7 @@ async def on_ready():
     except Exception as e:
         print("⚠️ command sync error:", e)
 
-    # start the live updater
+    # kick off the live updater
     client.loop.create_task(_background_updater())
 
 @tree.command(name="resync", description="Force refresh all commands (owner only)")
