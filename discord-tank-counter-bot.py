@@ -229,25 +229,26 @@ async def template(inter: discord.Interaction, text: str):
 async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
 
+    # 1) wipe ALL GLOBAL commands on Discord so they don't duplicate
     try:
-        # ensure the /tank group is attached exactly once
-        if not any(cmd.name == "tank" for cmd in tree.get_commands()):
-            tree.add_command(tank)
-
-        # 1) sync globals (updates/deletes old global commands)
-        globals_synced = await tree.sync()
-        print(f"🌐 synced {len(globals_synced)} global commands")
-
-        # 2) copy to each guild for instant availability
-        for g in client.guilds:
-            tree.copy_global_to(guild=g)
-            guild_synced = await tree.sync(guild=g)
-            print(f"✅ synced {len(guild_synced)} commands to {g.name} ({g.id})")
-
+        tree.clear_commands(guild=None)   # clear local global set
+        await tree.sync()                 # pushes empty -> deletes globals on API
+        print("🧹 cleared global commands")
     except Exception as e:
-        print("⚠️ command sync error:", e)
+        print("⚠️ global clear error:", e)
 
-    # kick off the live updater
+    # 2) register ONLY guild-scoped commands (one copy per server)
+    for g in client.guilds:
+        try:
+            # ensure no old guild set lingers, then attach /tank for this guild
+            tree.clear_commands(guild=g)
+            tree.add_command(tank, guild=g)   # add group for this guild only
+            synced = await tree.sync(guild=g)
+            print(f"✅ synced {len(synced)} guild cmds to {g.name} ({g.id})")
+        except Exception as e:
+            print(f"⚠️ guild sync error for {g.name}:", e)
+
+    # 3) start the live updater
     client.loop.create_task(_background_updater())
 
 @tree.command(name="resync", description="Force refresh all commands (owner only)")
