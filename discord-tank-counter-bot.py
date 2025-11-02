@@ -225,23 +225,8 @@ async def template(inter: discord.Interaction, text: str):
     await _update_display(inter.guild, gs)
     await inter.response.send_message("Template updated.", ephemeral=True)
 
-# ──────────────────────────────────────────────────────────────
-@client.event
-async def on_ready():
-    print(f"Logged in as {client.user} (ID: {client.user.id})")
-
-    # Always force a per-guild resync so new commands (like /tank start) appear instantly
-    try:
-        for guild in client.guilds:
-            synced = await tree.sync(guild=guild)
-            print(f"✅ Synced {len(synced)} commands to {guild.name} ({guild.id})")
-    except Exception as e:
-        print("⚠️ Sync error:", e)
-
-    # Refresh any existing display messages when the bot starts up
-    for guild in client.guilds:
-        gs = state.for_guild(guild.id)
-        try:
-            await _update_display(guild, gs)
-        except Exception:
-            pass
+if __name__ == "__main__":
+    token = os.getenv("DISCORD_BOT_TOKEN")
+    if not token:
+        raise SystemExit("Set DISCORD_BOT_TOKEN env var.")
+    client.run(token)
