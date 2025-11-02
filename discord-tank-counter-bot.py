@@ -13,6 +13,7 @@ import os
 import json
 import re
 import asyncio
+import random
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -139,8 +140,8 @@ async def _send_milestone_message(guild: discord.Guild, gs: GuildState, days: in
         f"💣💣 {days} days 💀💀 no tank sighting ⚡⚡ spirits high 🫠🫠",
     ]
 
-    # start day 1 on the first line, day 2 on the second, etc.
-    idx = (days - 1) % len(moods)
+    # Randomly select a mood
+    idx = random.randint(0, (len(moods) - 1))
     await channel.send(moods[idx])
 
     gs.last_announced_day = days
