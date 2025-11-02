@@ -125,13 +125,13 @@ async def _send_milestone_message(guild: discord.Guild, gs: GuildState, days: in
     channel = guild.get_channel(gs.channel_id) or await client.fetch_channel(gs.channel_id)
 
     moods = [
-        f"{days} 💥💥 days 💀💀 without tank talk 🤯🤯 unbelievable",
+        f"💥💥 {days} days 💀💀 without tank talk 🤯🤯 unbelievable",
         f"still 🧘‍♀️🧘‍♀️ no tanks 💀💀 after {days} 😮‍💨😮‍💨 days 🫠🫠 peace is suspicious",
-        f"we’ve survived 🫡🫡 {days} 🌫️🌫️ days 💣💣 without chaos 🐍🐍 why though",
-        f"{days} 🐢🐢 days 🫡🫡 tank-free 😵‍💫😵‍💫 weirdly peaceful ☁️☁️ unsettling",
-        f"{days} 🧘‍♀️🧘‍♀️ days 💥💥 no tanks 💀💀 everyone too calm 😪😪",
-        f"{days} 🍷🍷 days 🫡🫡 pretending ☠️☠️ we’re normal 🐢🐢",
-        f"{days} 💣💣 days 💀💀 no tank sighting ⚡⚡ spirits high 🫠🫠",
+        f"🫡🫡 we’ve survived 🌫️🌫️ {days} days 💣💣 without chaos 🐍🐍 why though",
+        f"🐢🐢 {days} days 🫡🫡 tank-free 😵‍💫😵‍💫 weirdly peaceful ☁️☁️ unsettling",
+        f"🧘‍♀️🧘‍♀️ {days} days 💥💥 no tanks 💀💀 everyone too calm 😪😪",
+        f"🍷🍷 {days} days 🫡🫡 pretending ☠️☠️ we’re normal 🐢🐢",
+        f"💣💣 {days} days 💀💀 no tank sighting ⚡⚡ spirits high 🫠🫠",
     ]
 
     # start day 1 on the first line, day 2 on the second, etc.
