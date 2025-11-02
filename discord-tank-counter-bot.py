@@ -251,6 +251,25 @@ async def on_ready():
     # start the live updater
     client.loop.create_task(_background_updater())
 
+@tree.command(name="resync", description="Force refresh all commands (owner only)")
+async def resync(inter: discord.Interaction):
+    app_info = await client.application_info()
+    if inter.user.id != app_info.owner.id:
+        await inter.response.send_message("Only the bot owner can use this.", ephemeral=True)
+        return
+
+    try:
+        # wipe any old commands globally and per guild, then reload them
+        await tree.sync()  # ensures local defs are registered
+        for g in client.guilds:
+            tree.copy_global_to(guild=g)
+            await tree.sync(guild=g)
+        await inter.response.send_message("✅ Commands fully re-synced!", ephemeral=True)
+        print("🔁 manual resync triggered by owner")
+    except Exception as e:
+        await inter.response.send_message(f"⚠️ Resync failed: {e}", ephemeral=True)
+        print("resync error:", e)
+
 if __name__ == "__main__":
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
