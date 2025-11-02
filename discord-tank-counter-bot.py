@@ -228,10 +228,25 @@ async def template(inter: discord.Interaction, text: str):
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
-    for guild in client.guilds:
-        await tree.sync(guild=guild)
-        print(f"✅ Synced commands to {guild.name} ({guild.id})")
-    await asyncio.create_task(_background_updater())
+
+    # 🧹 one-time cleanup: remove any old *global* slash commands
+    try:
+        tree.clear_commands(guild=None)   # clear globals in the local tree
+        await tree.sync()                 # push an empty global set → deletes old global cmds
+        print("🧹 cleared global commands")
+    except Exception as e:
+        print("⚠️ global clear/sync error:", e)
+
+    # ✅ now register the current commands per-guild (fast availability)
+    for g in client.guilds:
+        try:
+            synced = await tree.sync(guild=g)
+            print(f"✅ synced {len(synced)} commands to {g.name} ({g.id})")
+        except Exception as e:
+            print(f"⚠️ guild sync error for {g.name}:", e)
+
+    # ▶️ keep the live counter running
+    client.loop.create_task(_background_updater())
 
 if __name__ == "__main__":
     token = os.getenv("DISCORD_BOT_TOKEN")
