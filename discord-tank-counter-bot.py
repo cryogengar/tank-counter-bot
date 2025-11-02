@@ -13,7 +13,7 @@ import os
 import json
 import re
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, UTC
 from pathlib import Path
 
 import discord
@@ -74,7 +74,12 @@ def _elapsed(gs: GuildState):
     """Return days, hours, minutes, seconds since start_time."""
     if not gs.start_time:
         return 0, 0, 0, 0
-    delta = datetime.utcnow() - datetime.fromisoformat(gs.start_time)
+    now = datetime.now(UTC)
+    start = datetime.fromisoformat(gs.start_time)
+    # Back-compat: if the saved time is naive, assume UTC
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=UTC)
+    delta = now - start
     days = delta.days
     hours, rem = divmod(delta.seconds, 3600)
     minutes, seconds = divmod(rem, 60)
@@ -172,7 +177,7 @@ async def post(inter: discord.Interaction):
     assert inter.guild
     gs = state.for_guild(inter.guild.id)
     if not gs.start_time:
-        gs.start_time = datetime.utcnow().isoformat()
+        gs.start_time = datetime.now(UTC).isoformat()
     text = await _render_text(gs)
     await inter.response.send_message(text)
     msg = await inter.original_response()
@@ -184,7 +189,7 @@ async def post(inter: discord.Interaction):
 async def reset(inter: discord.Interaction):
     assert inter.guild
     gs = state.for_guild(inter.guild.id)
-    gs.start_time = datetime.utcnow().isoformat()
+    gs.start_time = datetime.now(UTC).isoformat()
     gs.last_announced_day = -1
     state.save()
     await _update_display(inter.guild, gs)
@@ -196,15 +201,26 @@ async def start(inter: discord.Interaction, time: str):
     assert inter.guild
     gs = state.for_guild(inter.guild.id)
     try:
-        # Validate and set ISO format time
-        datetime.fromisoformat(time)
-        gs.start_time = time
+        # parse ISO; if naive assume UTC, if offset provided convert to UTC
+        start_dt = datetime.fromisoformat(time)
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=UTC)
+        else:
+            start_dt = start_dt.astimezone(UTC)
+
+        gs.start_time = start_dt.isoformat()
         gs.last_announced_day = -1
         state.save()
         await _update_display(inter.guild, gs)
-        await inter.response.send_message(f"Start time set to `{time}` UTC.", ephemeral=True)
+        await inter.response.send_message(
+            f"Start time set to `{gs.start_time}` (UTC).",
+            ephemeral=True
+        )
     except Exception:
-        await inter.response.send_message("Invalid time format. Use `YYYY-MM-DDTHH:MM:SS`.", ephemeral=True)
+        await inter.response.send_message(
+            "Invalid time format. Use `YYYY-MM-DDTHH:MM:SS` (UTC).",
+            ephemeral=True
+        )
 
 @tank.command(name="template", description="Set text template (must include {days})")
 @app_commands.describe(text="Example: 🧯⚠️ {days}:{hours}:{minutes}:{seconds} WITHOUT TANK TALK ⚠️🧯")
@@ -267,13 +283,18 @@ async def resync(inter: discord.Interaction):
         return
 
     try:
-        # wipe any old commands globally and per guild, then reload them
-        await tree.sync()  # ensures local defs are registered
+        # wipe globals (stay guild-only)
+        tree.clear_commands(guild=None)
+        await tree.sync()
+
+        # re-sync for each guild
         for g in client.guilds:
-            tree.copy_global_to(guild=g)
+            tree.clear_commands(guild=g)
+            tree.add_command(tank, guild=g)
             await tree.sync(guild=g)
+
         await inter.response.send_message("✅ Commands fully re-synced!", ephemeral=True)
-        print("🔁 manual resync triggered by owner")
+        print("🔁 manual resync (guild-only) triggered by owner")
     except Exception as e:
         await inter.response.send_message(f"⚠️ Resync failed: {e}", ephemeral=True)
         print("resync error:", e)
