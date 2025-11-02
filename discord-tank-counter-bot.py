@@ -139,8 +139,8 @@ async def _send_milestone_message(guild: discord.Guild, gs: GuildState, days: in
         f"💣💣 {days} days 💀💀 no tank sighting ⚡⚡ spirits high 🫠🫠",
     ]
 
-    # start day 1 on the first line, day 2 on the second, etc.
-    idx = (days - 1) % len(moods)
+    # start day 1 on the first line, day 2 on the second, etc until last line for day 7+
+    idx = min((days - 1), (len(moods) - 1))
     await channel.send(moods[idx])
 
     gs.last_announced_day = days
