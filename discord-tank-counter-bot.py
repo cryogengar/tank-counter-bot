@@ -141,7 +141,7 @@ async def _send_milestone_message(guild: discord.Guild, gs: GuildState, days: in
     ]
 
     # Randomly select a mood
-    idx = randint(0, (len(moods) - 1))
+    idx = random.randint(0, (len(moods) - 1))
     await channel.send(moods[idx])
 
     gs.last_announced_day = days
