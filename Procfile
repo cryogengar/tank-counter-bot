@@ -1,1 +1,1 @@
-worker: python discord_tank_counter_bot.py
+worker: python discord-tank-counter-bot.py
