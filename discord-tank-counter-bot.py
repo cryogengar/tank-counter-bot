@@ -229,23 +229,26 @@ async def template(inter: discord.Interaction, text: str):
 async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
 
-    # 🧹 one-time cleanup: remove any old *global* slash commands
     try:
-        tree.clear_commands(guild=None)   # clear globals in the local tree
-        await tree.sync()                 # push an empty global set → deletes old global cmds
-        print("🧹 cleared global commands")
+        # (re)attach the /tank group to the tree in case it was cleared earlier
+        # tank is defined above as: tank = Tank(); tree.add_command(tank)
+        # calling add_command again is idempotent
+        tree.add_command(tank)
+
+        # 1) sync GLOBAL commands to the application (updates/deletes old globals)
+        globals_synced = await tree.sync()
+        print(f"🌐 synced {len(globals_synced)} global commands")
+
+        # 2) copy those globals into each guild for instant availability, then sync
+        for g in client.guilds:
+            tree.copy_global_to(guild=g)
+            guild_synced = await tree.sync(guild=g)
+            print(f"✅ synced {len(guild_synced)} commands to {g.name} ({g.id})")
+
     except Exception as e:
-        print("⚠️ global clear/sync error:", e)
+        print("⚠️ command sync error:", e)
 
-    # ✅ now register the current commands per-guild (fast availability)
-    for g in client.guilds:
-        try:
-            synced = await tree.sync(guild=g)
-            print(f"✅ synced {len(synced)} commands to {g.name} ({g.id})")
-        except Exception as e:
-            print(f"⚠️ guild sync error for {g.name}:", e)
-
-    # ▶️ keep the live counter running
+    # start the live updater
     client.loop.create_task(_background_updater())
 
 if __name__ == "__main__":
