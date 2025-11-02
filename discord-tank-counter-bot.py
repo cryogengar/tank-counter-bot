@@ -23,7 +23,6 @@ STATE_FILE = Path("state.json")
 
 DEFAULT_TEMPLATE = "🧯⚠️ {days}:{hours}:{minutes}:{seconds} WITHOUT TANK TALK ⚠️🧯"
 
-# ──────────────────────────────────────────────────────────────
 class GuildState:
     def __init__(self, guild_id: int, data: dict | None = None):
         data = data or {}
@@ -43,7 +42,6 @@ class GuildState:
             "last_announced_day": self.last_announced_day,
         }
 
-# ──────────────────────────────────────────────────────────────
 class State:
     def __init__(self):
         self.by_guild: dict[int, GuildState] = {}
@@ -68,12 +66,10 @@ class State:
 
 state = State()
 
-# ──────────────────────────────────────────────────────────────
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# ──────────────────────────────────────────────────────────────
 def _elapsed(gs: GuildState):
     """Return days, hours, minutes, seconds since start_time."""
     if not gs.start_time:
@@ -84,7 +80,6 @@ def _elapsed(gs: GuildState):
     minutes, seconds = divmod(rem, 60)
     return days, hours, minutes, seconds
 
-# ──────────────────────────────────────────────────────────────
 async def _render_text(gs: GuildState) -> str:
     """Render the main message with zero-padded timer aesthetic."""
     days, hours, minutes, seconds = _elapsed(gs)
@@ -111,7 +106,6 @@ async def _render_text(gs: GuildState) -> str:
         Day_Word=base.capitalize(),
     )
 
-# ──────────────────────────────────────────────────────────────
 async def _update_display(guild: discord.Guild, gs: GuildState):
     """Update the bound message."""
     if not (gs.channel_id and gs.message_id):
@@ -124,27 +118,29 @@ async def _update_display(guild: discord.Guild, gs: GuildState):
         gs.message_id = None
         state.save()
 
-# ──────────────────────────────────────────────────────────────
 async def _send_milestone_message(guild: discord.Guild, gs: GuildState, days: int):
-    """Send a milestone message every 24h with rotating moods."""
+    """send a milestone message every 24h with your chaotic double-emoji moods (all lowercase)."""
     if not gs.channel_id:
         return
     channel = guild.get_channel(gs.channel_id) or await client.fetch_channel(gs.channel_id)
 
-    # cycle between 3 moods
-    mood = days % 3
-    if mood == 1:
-        msg = f"🎉 *{days} day{'s' if days != 1 else ''} without tank talk!* Keep the peace, commanders. 🕊️"
-    elif mood == 2:
-        msg = f"🏆 *{days} day{'s' if days != 1 else ''} without tank talk.* Unbelievable. Truly a miracle. 🙄"
-    else:
-        msg = f"👁 *The silence stretches to {days} day{'s' if days != 1 else ''}.* The tanks wait. They always wait."
+    moods = [
+        f"{days} 💥💥 days 💀💀 without tank talk 🤯🤯 unbelievable",
+        f"still 🧘‍♀️🧘‍♀️ no tanks 💀💀 after {days} 😮‍💨😮‍💨 days 🫠🫠 peace is suspicious",
+        f"we’ve survived 🫡🫡 {days} 🌫️🌫️ days 💣💣 without chaos 🐍🐍 why though",
+        f"{days} 🐢🐢 days 🫡🫡 tank-free 😵‍💫😵‍💫 weirdly peaceful ☁️☁️ unsettling",
+        f"{days} 🧘‍♀️🧘‍♀️ days 💥💥 no tanks 💀💀 everyone too calm 😪😪",
+        f"{days} 🍷🍷 days 🫡🫡 pretending ☠️☠️ we’re normal 🐢🐢",
+        f"{days} 💣💣 days 💀💀 no tank sighting ⚡⚡ spirits high 🫠🫠",
+    ]
 
-    await channel.send(msg)
+    # start day 1 on the first line, day 2 on the second, etc.
+    idx = (days - 1) % len(moods)
+    await channel.send(moods[idx])
+
     gs.last_announced_day = days
     state.save()
 
-# ──────────────────────────────────────────────────────────────
 async def _background_updater():
     """Refresh all timers and post daily milestones."""
     await client.wait_until_ready()
@@ -160,7 +156,6 @@ async def _background_updater():
                 pass
         await asyncio.sleep(30)
 
-# ──────────────────────────────────────────────────────────────
 @tree.command(name="ping", description="Check if the bot is alive")
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("pong 🕷️", ephemeral=True)
@@ -172,7 +167,6 @@ class Tank(app_commands.Group):
 tank = Tank()
 tree.add_command(tank)
 
-# ──────────────────────────────────────────────────────────────
 @tank.command(name="post", description="Post the live counter here")
 async def post(inter: discord.Interaction):
     assert inter.guild
@@ -224,6 +218,20 @@ async def template(inter: discord.Interaction, text: str):
     state.save()
     await _update_display(inter.guild, gs)
     await inter.response.send_message("Template updated.", ephemeral=True)
+
+@tank.command(name="status", description="show how long it’s been since last tank talk")
+async def status(inter: discord.Interaction):
+    assert inter.guild
+    gs = state.for_guild(inter.guild.id)
+    days, hours, minutes, seconds = _elapsed(gs)
+    msg = (
+        f"it's been {days} day{'s' if days != 1 else ''}, "
+        f"{hours} hour{'s' if hours != 1 else ''}, "
+        f"{minutes} minute{'s' if minutes != 1 else ''}, "
+        f"and {seconds} second{'s' if seconds != 1 else ''} "
+        "since the last tank lecture. phenomenal restraint, everyone 😀"
+    )
+    await inter.response.send_message(msg)
 
 @client.event
 async def on_ready():
