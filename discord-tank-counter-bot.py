@@ -225,6 +225,14 @@ async def template(inter: discord.Interaction, text: str):
     await _update_display(inter.guild, gs)
     await inter.response.send_message("Template updated.", ephemeral=True)
 
+@client.event
+async def on_ready():
+    print(f"Logged in as {client.user} (ID: {client.user.id})")
+    for guild in client.guilds:
+        await tree.sync(guild=guild)
+        print(f"✅ Synced commands to {guild.name} ({guild.id})")
+    await asyncio.create_task(_background_updater())
+
 if __name__ == "__main__":
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
