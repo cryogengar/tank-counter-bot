@@ -16,11 +16,14 @@ import asyncio
 import random
 from datetime import datetime, UTC
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
 
 STATE_FILE = Path("state.json")
+STATE_FILE = Path(os.getenv("STATE_FILE_PATH", "/data/state.json"))
+LOCAL_TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Vancouver"))
 
 DEFAULT_TEMPLATE = "🧯⚠️ {days}:{hours}:{minutes}:{seconds} WITHOUT TANK TALK ⚠️🧯"
 
@@ -70,6 +73,12 @@ state = State()
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
+
+def _parse_iso_smart(value: str) -> datetime:
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=LOCAL_TZ)
+    return dt.astimezone(UTC)
 
 def _elapsed(gs: GuildState):
     """Return days, hours, minutes, seconds since start_time."""
@@ -197,29 +206,22 @@ async def reset(inter: discord.Interaction):
     await inter.response.send_message("Timer reset.", ephemeral=True)
 
 @tank.command(name="start", description="Set a custom start time (ISO 8601)")
-@app_commands.describe(time="Format: YYYY-MM-DDTHH:MM:SS (UTC)")
+@app_commands.describe(time="Format: YYYY-MM-DDTHH:MM:SS (local time assumed, e.g., 2025-11-03T05:37:00)")
 async def start(inter: discord.Interaction, time: str):
     assert inter.guild
     gs = state.for_guild(inter.guild.id)
     try:
-        # parse ISO; if naive assume UTC, if offset provided convert to UTC
-        start_dt = datetime.fromisoformat(time)
-        if start_dt.tzinfo is None:
-            start_dt = start_dt.replace(tzinfo=UTC)
-        else:
-            start_dt = start_dt.astimezone(UTC)
-
+        start_dt = _parse_iso_smart(time)
         gs.start_time = start_dt.isoformat()
         gs.last_announced_day = -1
         state.save()
         await _update_display(inter.guild, gs)
         await inter.response.send_message(
-            f"Start time set to `{gs.start_time}` (UTC).",
-            ephemeral=True
+            f"Start time set to `{gs.start_time}` (UTC).", ephemeral=True
         )
     except Exception:
         await inter.response.send_message(
-            "Invalid time format. Use `YYYY-MM-DDTHH:MM:SS` (UTC).",
+            "Invalid time format. Use `YYYY-MM-DDTHH:MM:SS` (your local time).",
             ephemeral=True
         )
 
