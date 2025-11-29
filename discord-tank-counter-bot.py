@@ -26,6 +26,7 @@ LOCAL_TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Vancouver"))
 
 DEFAULT_TEMPLATE = "🧯⚠️ {days}:{hours}:{minutes}:{seconds} WITHOUT TANK TALK ⚠️🧯"
 
+
 class GuildState:
     def __init__(self, guild_id: int, data: dict | None = None):
         data = data or {}
@@ -45,6 +46,7 @@ class GuildState:
             "last_announced_day": self.last_announced_day,
         }
 
+
 class State:
     def __init__(self):
         self.by_guild: dict[int, GuildState] = {}
@@ -56,11 +58,11 @@ class State:
             for gid, val in data.items():
                 self.by_guild[int(gid)] = GuildState(int(gid), val)
 
-def save(self):
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(
-        json.dumps({str(k): v.to_dict() for k, v in self.by_guild.items()}, indent=2)
-    )
+    def save(self):
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        STATE_FILE.write_text(
+            json.dumps({str(k): v.to_dict() for k, v in self.by_guild.items()}, indent=2)
+        )
 
     def for_guild(self, gid: int) -> GuildState:
         if gid not in self.by_guild:
@@ -69,6 +71,7 @@ def save(self):
 
 
 state = State()
+
 
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
