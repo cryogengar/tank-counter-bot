@@ -174,6 +174,9 @@ async def _send_milestone_message(guild: discord.Guild, gs: GuildState, days: in
         return
     channel = guild.get_channel(gs.channel_id) or await client.fetch_channel(gs.channel_id)
 
+    # correct singular vs plural wording
+    day_word = "day" if days == 1 else "days"
+
     moods = [
         f"💥💥 {days} days 💀💀 without tank talk 🤯🤯 unbelievable",
         f"still 🧘‍♀️🧘‍♀️ no tanks 💀💀 after {days} 😮‍💨😮‍💨 days 🫠🫠 peace is suspicious",
