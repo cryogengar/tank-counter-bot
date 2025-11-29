@@ -75,24 +75,42 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 def _parse_iso_smart(value: str) -> datetime:
-    # Clean up common formatting issues
-    value = value.strip()                     # remove surrounding spaces
-    # strip surrounding quotes if present
+    """Parse a forgiving ISO-like local time string and return UTC datetime."""
+    # Log raw value once in case of future debugging
+    print("parsing time string:", repr(value))
+
+    # Trim spaces
+    value = value.strip()
+
+    # Strip surrounding quotes if the user included them
     if (value.startswith('"') and value.endswith('"')) or (
         value.startswith("'") and value.endswith("'")
     ):
-        value = value[1:-1]
+        value = value[1:-1].strip()
 
-    # normalise unicode dashes to plain hyphen
+    # Normalise unicode dashes to plain hyphens
     value = value.replace("–", "-").replace("—", "-")
 
-    # try basic ISO format first
-    dt = datetime.fromisoformat(value)
+    # Accept: YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS
+    # Also accept a space instead of "T"
+    m = re.fullmatch(
+        r"(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?",
+        value,
+    )
+    if not m:
+        raise ValueError(f"Bad time format: {value!r}")
 
-    # if user did not include a timezone, treat as local and convert to UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=LOCAL_TZ)
-    return dt.astimezone(UTC)
+    year, month, day, hour, minute, second = m.groups()
+    year = int(year)
+    month = int(month)
+    day = int(day)
+    hour = int(hour)
+    minute = int(minute)
+    second = int(second) if second is not None else 0
+
+    # Treat as local time, then convert to UTC
+    dt_local = datetime(year, month, day, hour, minute, second, tzinfo=LOCAL_TZ)
+    return dt_local.astimezone(UTC)
 
 def _elapsed(gs: GuildState):
     """Return days, hours, minutes, seconds since start_time."""
@@ -225,7 +243,12 @@ async def start(inter: discord.Interaction, time: str):
     assert inter.guild
     gs = state.for_guild(inter.guild.id)
     try:
+        print("raw time string:", repr(time))  # 👈 DEBUG — log exactly what Discord sent
+
         start_dt = _parse_iso_smart(time)
+
+        print("parsed to UTC:", start_dt)  # 👈 DEBUG — confirm correct conversion
+
         gs.start_time = start_dt.isoformat()
         gs.last_announced_day = -1
         state.save()
@@ -233,7 +256,8 @@ async def start(inter: discord.Interaction, time: str):
         await inter.response.send_message(
             f"Start time set to `{gs.start_time}` (UTC).", ephemeral=True
         )
-    except Exception:
+    except Exception as e:
+        print("start() parse error:", e)  # 👈 DEBUG — see what went wrong
         await inter.response.send_message(
             "Invalid time format. Use `YYYY-MM-DDTHH:MM:SS` (your local time).",
             ephemeral=True
