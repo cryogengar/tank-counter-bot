@@ -75,7 +75,21 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 def _parse_iso_smart(value: str) -> datetime:
+    # Clean up common formatting issues
+    value = value.strip()                     # remove surrounding spaces
+    # strip surrounding quotes if present
+    if (value.startswith('"') and value.endswith('"')) or (
+        value.startswith("'") and value.endswith("'")
+    ):
+        value = value[1:-1]
+
+    # normalise unicode dashes to plain hyphen
+    value = value.replace("–", "-").replace("—", "-")
+
+    # try basic ISO format first
     dt = datetime.fromisoformat(value)
+
+    # if user did not include a timezone, treat as local and convert to UTC
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=LOCAL_TZ)
     return dt.astimezone(UTC)
