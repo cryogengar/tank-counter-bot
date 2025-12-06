@@ -24,6 +24,10 @@ from discord import app_commands
 STATE_FILE = Path(os.getenv("STATE_FILE_PATH", "state.json"))
 LOCAL_TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Vancouver"))
 
+SCORES_FILE = Path(os.getenv("SCORES_FILE_PATH", "scores.json"))
+BLAME_TRIGGER_TEXT = "Who talked about tanks and reset the timer today?"
+BLAME_EMOJI = "➕"
+
 DEFAULT_TEMPLATE = "🧯⚠️ {days}:{hours}:{minutes}:{seconds} WITHOUT TANK TALK ⚠️🧯"
 
 
@@ -74,6 +78,8 @@ state = State()
 
 
 intents = discord.Intents.default()
+intents.reactions = True
+intents.members = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
@@ -129,6 +135,18 @@ def _elapsed(gs: GuildState):
     hours, rem = divmod(delta.seconds, 3600)
     minutes, seconds = divmod(rem, 60)
     return days, hours, minutes, seconds
+
+def load_scores() -> dict[str, int]:
+    if SCORES_FILE.exists():
+        try:
+            return json.loads(SCORES_FILE.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+def save_scores(scores: dict[str, int]) -> None:
+    SCORES_FILE.write_text(json.dumps(scores, indent=2))
 
 async def _render_text(gs: GuildState) -> str:
     """Render the main message with zero-padded timer aesthetic."""
@@ -241,7 +259,12 @@ async def reset(inter: discord.Interaction):
     gs.last_announced_day = -1
     state.save()
     await _update_display(inter.guild, gs)
-    await inter.response.send_message("Timer reset.", ephemeral=True)
+    
+    await inter.response.send_message("Tank timer reset!", ephemeral=False)
+
+    await inter.followup.send(
+        f"{BLAME_TRIGGER_TEXT}\n\nReact with {BLAME_EMOJI} to claim it and add 1 to your tank score."
+    )
 
 @tank.command(name="start", description="Set a custom start time (ISO 8601)")
 @app_commands.describe(time="Format: YYYY-MM-DDTHH:MM:SS (local time assumed, e.g., 2025-11-03T05:37:00)")
@@ -295,6 +318,80 @@ async def status(inter: discord.Interaction):
         "since the last tank lecture. phenomenal restraint, everyone 😀"
     )
     await inter.response.send_message(msg)
+
+@tree.command(name="tankscores", description="Show the tank talk leaderboard")
+async def tank_scores(interaction: discord.Interaction):
+    scores = load_scores()
+    if not scores:
+        await interaction.response.send_message("No one has confessed to talking about tanks yet.", ephemeral=False)
+        return
+
+    # sort by highest score first
+    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+
+    lines = []
+    for user_id_str, count in sorted_scores:
+        user_id = int(user_id_str)
+        member = interaction.guild.get_member(user_id)
+        if member is None:
+            try:
+                member = await interaction.guild.fetch_member(user_id)
+            except Exception:
+                member = None
+
+        name = member.display_name if member else f"<@{user_id}>"
+        lines.append(f"**{name}** — {count} reset(s)")
+
+    leaderboard = "\n".join(lines)
+    await interaction.response.send_message(
+        f"🛡️ **Tank Talk Leaderboard**\n{leaderboard}",
+        ephemeral=False,
+    )
+
+@client.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    # ignore bot's own reactions
+    if payload.user_id == client.user.id:
+        return
+
+    # only care about the specific emoji
+    if str(payload.emoji) != BLAME_EMOJI:
+        return
+
+    # fetch the message
+    channel = client.get_channel(payload.channel_id)
+    if channel is None:
+        channel = await client.fetch_channel(payload.channel_id)
+
+    try:
+        message = await channel.fetch_message(payload.message_id)
+    except discord.NotFound:
+        return
+
+    # ensure it is one of our "who sinned?" messages
+    if message.author.id != client.user.id:
+        return
+    if BLAME_TRIGGER_TEXT not in message.content:
+        return
+
+    # update scores
+    scores = load_scores()
+    user_id_str = str(payload.user_id)
+    scores[user_id_str] = scores.get(user_id_str, 0) + 1
+    save_scores(scores)
+
+    # optional: edit message to show this person's new total
+    guild = message.guild
+    display_name = f"<@{payload.user_id}>"
+    if guild is not None:
+        member = guild.get_member(payload.user_id) or await guild.fetch_member(payload.user_id)
+        if member is not None:
+            display_name = member.display_name
+
+    new_total = scores[user_id_str]
+    suffix = f"\n\n{display_name} has now reset the tank timer **{new_total}** time(s)."
+    if suffix not in message.content:
+        await message.edit(content=message.content + suffix)
 
 @client.event
 async def on_ready():
