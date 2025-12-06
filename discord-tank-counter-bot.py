@@ -333,40 +333,46 @@ async def tank_scores(inter: discord.Interaction):
     # sort by highest score first
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
-    # decorative borders
-    top_border = "╔══⚔️                      ⚔️══╗"
-    bottom_border = "╚══⚔️                      ⚔️══╝"
-    border_width = len(top_border)
-
-    title_text = "tank leaderboard"
-    # centre the plain title text within the border width
-    padding = max(0, (border_width - len(title_text)) // 2)
-    title_line = " " * padding + f"**{title_text}**"
-
     medals = ["🥇", "🥈", "🥉"]
-    lines: list[str] = []
+    entry_lines: list[str] = []
 
-    # top of box + centred title
-    lines.append(top_border)
-    lines.append(title_line)
-    lines.append("")  # spacer line
-
+    # build the raw leaderboard entry lines first
     for i, (user_id_str, count) in enumerate(sorted_scores):
-        medal = medals[i] if i < len(medals) else "🔹"
+        medal = medals[i] if i < len(medals) else "🛡️"
 
         user = await client.fetch_user(int(user_id_str))
         display_name = user.display_name.lower()
-
         time_word = "time" if count == 1 else "times"
 
-        # you can tweak indentation here if you want it tighter/looser
-        lines.append(
-            f"    {medal} {display_name} // has sinned **{count}** {time_word}"
+        entry_lines.append(
+            f"{medal} {display_name} // has sinned **{count}** {time_word}"
         )
 
-    # bottom of box
-    lines.append("")
-    lines.append(bottom_border)
+    # core title text inside the border
+    title_core = "⚔️ tank leaderboard ⚔️"
+
+    # determine how wide the inside of the box needs to be
+    max_content_width = max(len(title_core), *(len(l) for l in entry_lines))
+    inner_width = max_content_width
+
+    # centre the title text within the inner width using dashes
+    pad_total = inner_width - len(title_core)
+    left_pad = max(0, pad_total // 2)
+    right_pad = max(0, pad_total - left_pad)
+
+    top_line = "╭" + ("─" * left_pad) + title_core + ("─" * right_pad) + "╮"
+    bottom_line = "╰" + ("─" * inner_width) + "╯"
+
+    # assemble all lines for the embed description
+    lines: list[str] = []
+    lines.append(top_line)
+    lines.append("")  # blank line after border (layout B)
+
+    # add the leaderboard entries (no extra padding so it stays natural)
+    lines.extend(entry_lines)
+
+    lines.append("")  # blank line before bottom border
+    lines.append(bottom_line)
 
     embed = discord.Embed(
         description="\n".join(lines),
