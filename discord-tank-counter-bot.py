@@ -320,30 +320,26 @@ async def status(inter: discord.Interaction):
     await inter.response.send_message(msg)
 
 @tree.command(name="tankscores", description="Show the tank talk leaderboard")
-async def tank_scores(interaction: discord.Interaction):
+async def tank_scores(inter: discord.Interaction):
     scores = load_scores()
     if not scores:
-        await interaction.response.send_message("No one has confessed to talking about tanks yet.", ephemeral=False)
+        await inter.response.send_message(
+            "No one has confessed to talking about tanks yet.",
+            ephemeral=False,
+        )
         return
 
-    # sort by highest score first
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
     lines = []
     for user_id_str, count in sorted_scores:
         user_id = int(user_id_str)
-        member = interaction.guild.get_member(user_id)
-        if member is None:
-            try:
-                member = await interaction.guild.fetch_member(user_id)
-            except Exception:
-                member = None
-
-        name = member.display_name if member else f"<@{user_id}>"
-        lines.append(f"**{name}** — {count} reset(s)")
+        member = interaction.guild.get_member(user_id) or await interaction.guild.fetch_member(user_id)
+    name = member.display_name if member else f"<@{user_id}>"
+        lines.append(f"{name} — {count} reset(s)")
 
     leaderboard = "\n".join(lines)
-    await interaction.response.send_message(
+    await inter.response.send_message(
         f"🛡️ **Tank Talk Leaderboard**\n{leaderboard}",
         ephemeral=False,
     )
