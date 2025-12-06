@@ -319,8 +319,10 @@ async def status(inter: discord.Interaction):
     )
     await inter.response.send_message(msg)
 
-@tree.command(name="tankscores", description="Show the tank talk leaderboard")
+@tank.command(name="scores", description="Show the tank talk leaderboard")
 async def tank_scores(inter: discord.Interaction):
+    assert inter.guild
+
     scores = load_scores()
     if not scores:
         await inter.response.send_message(
@@ -329,14 +331,38 @@ async def tank_scores(inter: discord.Interaction):
         )
         return
 
-    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    # Build list: (display_name_or_mention, count, user_id)
+    entries: list[tuple[str, int, int]] = []
+    for user_id_str, count in scores.items():
+        user_id = int(user_id_str)
+        member = inter.guild.get_member(user_id)
+        if member is None:
+            try:
+                member = await inter.guild.fetch_member(user_id)
+            except Exception:
+                member = None
+
+        # Prefer display name; fall back to a mention if we cannot fetch
+        name = member.display_name if member else f"<@{user_id}>"
+        entries.append((name, count, user_id))
+
+    # Sort: highest score first, then alphabetical (case-insensitive) for ties
+    entries.sort(key=lambda x: (-x[1], x[0].lower()))
 
     lines = []
-    for user_id_str, count in sorted_scores:
-        user_id = int(user_id_str)
-        member = interaction.guild.get_member(user_id) or await interaction.guild.fetch_member(user_id)
-    name = member.display_name if member else f"<@{user_id}>"
-        lines.append(f"{name} — {count} reset(s)")
+    for index, (name, count, user_id) in enumerate(entries, start=1):
+        if index == 1:
+            rank_symbol = "🥇"
+        elif index == 2:
+            rank_symbol = "🥈"
+        elif index == 3:
+            rank_symbol = "🥉"
+        else:
+            rank_symbol = f"{index}."
+
+        # Include both display name and a mention so it is clear who it is
+        mention = f"<@{user_id}>"
+        lines.append(f"{rank_symbol} **{name}** ({mention}) — {count} reset(s)")
 
     leaderboard = "\n".join(lines)
     await inter.response.send_message(
