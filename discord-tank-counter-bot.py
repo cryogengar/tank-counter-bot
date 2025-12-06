@@ -348,11 +348,10 @@ async def scores(inter: discord.Interaction):
             except Exception:
                 member = None
 
-        name = (member.display_name.lower() if member else f"<@{user_id}>")
-        medal = medals[idx]
+        name = member.display_name if member else f"<@{user_id}>"
         sin_word = "sin" if count == 1 else "sins"
 
-        lines.append(f"{medal} {name} // **{count}** {sin_word}")
+        lines.append(f"{medals[idx]} {name} has sinned **{count}** {sin_word}")
 
     description = "\n".join(lines)
 
