@@ -333,14 +333,23 @@ async def tank_scores(inter: discord.Interaction):
     # sort by highest score first
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
+    # decorative borders
+    top_border = "╔══⚔️                      ⚔️══╗"
+    bottom_border = "╚══⚔️                      ⚔️══╝"
+    border_width = len(top_border)
+
+    title_text = "tank leaderboard"
+    # centre the plain title text within the border width
+    padding = max(0, (border_width - len(title_text)) // 2)
+    title_line = " " * padding + f"**{title_text}**"
+
     medals = ["🥇", "🥈", "🥉"]
     lines: list[str] = []
 
-    # header + top divider
-    header = "🛡️  **tank talk leaderboard**  🛡️"
-    divider = "⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘"
-    lines.append(header)
-    lines.append(divider)
+    # top of box + centred title
+    lines.append(top_border)
+    lines.append(title_line)
+    lines.append("")  # spacer line
 
     for i, (user_id_str, count) in enumerate(sorted_scores):
         medal = medals[i] if i < len(medals) else "🔹"
@@ -348,16 +357,16 @@ async def tank_scores(inter: discord.Interaction):
         user = await client.fetch_user(int(user_id_str))
         display_name = user.display_name.lower()
 
-        # singular vs plural for “time(s)”
         time_word = "time" if count == 1 else "times"
 
+        # you can tweak indentation here if you want it tighter/looser
         lines.append(
-            f"{medal} {display_name} // has sinned **{count}** {time_word}"
+            f"    {medal} {display_name} // has sinned **{count}** {time_word}"
         )
 
-    # bottom divider + footer line
-    lines.append(divider)
-    lines.append("🤫 who will talk tanks next? 👁️")
+    # bottom of box
+    lines.append("")
+    lines.append(bottom_border)
 
     embed = discord.Embed(
         description="\n".join(lines),
@@ -366,12 +375,12 @@ async def tank_scores(inter: discord.Interaction):
 
     await inter.response.send_message(embed=embed)
 
-@tank.command(name="adjustscore", description="Owner only: add or subtract from a user's tank score")
+@tank.command(name="adjust_score", description="adjust someone’s tank score")
 @app_commands.describe(
-    user="The user whose score you want to adjust",
-    delta="Amount to add (can be negative, e.g., -1)",
+    member="who is guilty?",
+    amount="add or subtract from their score"
 )
-async def tank_adjustscore(inter: discord.Interaction, user: discord.User, delta: int):
+async def adjust_score(inter: discord.Interaction, member: discord.Member, amount: int):
     # owner-only guard
     app_info = await client.application_info()
     if inter.user.id != app_info.owner.id:
