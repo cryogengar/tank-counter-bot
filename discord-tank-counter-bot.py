@@ -324,22 +324,23 @@ async def scores(inter: discord.Interaction):
     scores = load_scores()
     if not scores:
         await inter.response.send_message(
-            "no one has sinned by talking tanks yet.",
+            "no recorded tank sins yet. a peaceful land… for now.",
             ephemeral=False,
         )
         return
 
-    # sort desc by score
+    # sort by score (high → low) and keep only top 3
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    top_three = sorted_scores[:3]
 
-    medal_emojis = ["🥇", "🥈", "🥉"]
+    medals = ["🥇", "🥈", "🥉"]
     lines: list[str] = []
 
-    for idx, (user_id_str, count) in enumerate(sorted_scores):
+    assert inter.guild is not None
+
+    for idx, (user_id_str, count) in enumerate(top_three):
         user_id = int(user_id_str)
 
-        # need guild to resolve members
-        assert inter.guild
         member = inter.guild.get_member(user_id)
         if member is None:
             try:
@@ -347,20 +348,19 @@ async def scores(inter: discord.Interaction):
             except Exception:
                 member = None
 
-        name = member.display_name if member else f"<@{user_id}>"
-        medal = medal_emojis[idx] if idx < len(medal_emojis) else "•"
-
+        name = (member.display_name.lower() if member else f"<@{user_id}>")
+        medal = medals[idx]
         sin_word = "sin" if count == 1 else "sins"
-        lines.append(f"{medal} {name} // {count} {sin_word}")
+
+        lines.append(f"{medal} {name} // **{count}** {sin_word}")
 
     description = "\n".join(lines)
 
     embed = discord.Embed(
-        title="🛡️‎  tank leaderboard‎  🛡️",
+        title="tank leaderboard ⚔️",
         description=description,
         colour=discord.Colour.dark_gray(),
     )
-    embed.set_footer(text="⚔️ who will talk tanks next? 👁")
 
     await inter.response.send_message(embed=embed)
 
