@@ -319,7 +319,7 @@ async def status(inter: discord.Interaction):
     )
     await inter.response.send_message(msg)
 
-@tree.command(name="tank_scores", description="Show the tank talk leaderboard")
+@tree.command(name="scores", description="show the tank talk leaderboard")
 async def tank_scores(interaction: discord.Interaction):
     scores = load_scores()
     if not scores:
