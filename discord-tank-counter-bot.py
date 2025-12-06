@@ -378,32 +378,35 @@ async def tank_scores(inter: discord.Interaction):
 @tank.command(name="adjust_score", description="adjust someone’s tank score")
 @app_commands.describe(
     member="who is guilty?",
-    amount="add or subtract from their score"
+    amount="add or subtract from their score (can be negative)"
 )
 async def adjust_score(inter: discord.Interaction, member: discord.Member, amount: int):
     # owner-only guard
     app_info = await client.application_info()
     if inter.user.id != app_info.owner.id:
         await inter.response.send_message(
-            "Only the bot owner can use this command.",
+            "only the bot owner can use this command.",
             ephemeral=True,
         )
         return
 
     scores = load_scores()
-    user_id_str = str(user.id)
+    user_id_str = str(member.id)
+
     old_value = scores.get(user_id_str, 0)
-    new_value = old_value + delta
+    new_value = old_value + amount
     if new_value < 0:
         new_value = 0
 
     scores[user_id_str] = new_value
     save_scores(scores)
 
-    sign = "+" if delta >= 0 else ""
+    sign = "+" if amount >= 0 else ""
+    display_name = member.display_name.lower()
+
     await inter.response.send_message(
-        f"✅ adjusted {user.mention}'s tank score: **{old_value}** → **{new_value}** "
-        f"(delta {sign}{delta}).",
+        f"✅ adjusted {display_name}'s tank score: **{old_value}** → **{new_value}** "
+        f"(delta {sign}{amount}).",
         ephemeral=False,
     )
 
