@@ -370,6 +370,68 @@ async def tank_scores(inter: discord.Interaction):
         ephemeral=False,
     )
 
+@tank.command(name="setscore", description="Owner only: set a user's tank score to an exact value")
+@app_commands.describe(
+    user="The user whose score you want to change",
+    value="New score (0 or higher)",
+)
+async def tank_setscore(inter: discord.Interaction, user: discord.User, value: int):
+    # owner-only guard (same pattern as /resync)
+    app_info = await client.application_info()
+    if inter.user.id != app_info.owner.id:
+        await inter.response.send_message(
+            "Only the bot owner can use this command.",
+            ephemeral=True,
+        )
+        return
+
+    if value < 0:
+        value = 0
+
+    scores = load_scores()
+    user_id_str = str(user.id)
+    old_value = scores.get(user_id_str, 0)
+    scores[user_id_str] = value
+    save_scores(scores)
+
+    await inter.response.send_message(
+        f"✅ Set {user.mention}'s tank score from **{old_value}** to **{value}**.",
+        ephemeral=False,
+    )
+
+
+@tank.command(name="adjustscore", description="Owner only: add or subtract from a user's tank score")
+@app_commands.describe(
+    user="The user whose score you want to adjust",
+    delta="Amount to add (can be negative, e.g., -1)",
+)
+async def tank_adjustscore(inter: discord.Interaction, user: discord.User, delta: int):
+    # owner-only guard
+    app_info = await client.application_info()
+    if inter.user.id != app_info.owner.id:
+        await inter.response.send_message(
+            "Only the bot owner can use this command.",
+            ephemeral=True,
+        )
+        return
+
+    scores = load_scores()
+    user_id_str = str(user.id)
+    old_value = scores.get(user_id_str, 0)
+    new_value = old_value + delta
+    if new_value < 0:
+        new_value = 0
+
+    scores[user_id_str] = new_value
+    save_scores(scores)
+
+    sign = "+" if delta >= 0 else ""
+    await inter.response.send_message(
+        f"✅ Adjusted {user.mention}'s tank score: **{old_value}** → **{new_value}** "
+        f"(delta {sign}{delta}).",
+        ephemeral=False,
+    )
+
 @client.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     # ignore bot's own reactions
