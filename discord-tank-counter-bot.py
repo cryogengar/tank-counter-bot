@@ -319,67 +319,47 @@ async def status(inter: discord.Interaction):
     )
     await inter.response.send_message(msg)
 
-@tank.command(name="scores", description="show the tank talk leaderboard")
-async def tank_scores(inter: discord.Interaction):
+@tree.command(name="tank_scores", description="Show the tank talk leaderboard")
+async def tank_scores(interaction: discord.Interaction):
     scores = load_scores()
-
     if not scores:
-        await inter.response.send_message(
-            "nobody has triggered tank talk yet!",
-            ephemeral=False,
+        await interaction.response.send_message(
+            "no one has sinned by talking tanks yet.",
+            ephemeral=False
         )
         return
 
-    # sort by highest score first
+    # sort desc by score
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
-    medals = ["🥇", "🥈", "🥉"]
-    entry_lines: list[str] = []
+    medal_emojis = ["🥇", "🥈", "🥉"]
+    lines = []
 
-    # build the raw leaderboard entry lines first
-    for i, (user_id_str, count) in enumerate(sorted_scores):
-        medal = medals[i] if i < len(medals) else "🛡️"
+    for idx, (user_id_str, count) in enumerate(sorted_scores):
+        user_id = int(user_id_str)
+        member = interaction.guild.get_member(user_id)
+        if member is None:
+            try:
+                member = await interaction.guild.fetch_member(user_id)
+            except Exception:
+                member = None
 
-        user = await client.fetch_user(int(user_id_str))
-        display_name = user.display_name.lower()
-        time_word = "time" if count == 1 else "times"
+        name = member.display_name if member else f"<@{user_id}>"
+        medal = medal_emojis[idx] if idx < len(medal_emojis) else "•"
 
-        entry_lines.append(
-            f"{medal} {display_name} // has sinned **{count}** {time_word}"
-        )
+        sin_word = "sin" if count == 1 else "sins"
+        lines.append(f"{medal} {name} // {count} {sin_word}")
 
-    # core title text inside the border
-    title_core = "⚔️ tank leaderboard ⚔️"
-
-    # determine how wide the inside of the box needs to be
-    max_content_width = max(len(title_core), *(len(l) for l in entry_lines))
-    inner_width = max_content_width
-
-    # centre the title text within the inner width using dashes
-    pad_total = inner_width - len(title_core)
-    left_pad = max(0, pad_total // 2)
-    right_pad = max(0, pad_total - left_pad)
-
-    top_line = "╭" + ("─" * left_pad) + title_core + ("─" * right_pad) + "╮"
-    bottom_line = "╰" + ("─" * inner_width) + "╯"
-
-    # assemble all lines for the embed description
-    lines: list[str] = []
-    lines.append(top_line)
-    lines.append("")  # blank line after border (layout B)
-
-    # add the leaderboard entries (no extra padding so it stays natural)
-    lines.extend(entry_lines)
-
-    lines.append("")  # blank line before bottom border
-    lines.append(bottom_line)
+    description = "\n".join(lines)
 
     embed = discord.Embed(
-        description="\n".join(lines),
-        colour=discord.Colour.blue(),
+        title="🛡️ tank leaderboard 🛡️",
+        description=description,
+        colour=discord.Colour.dark_gray()
     )
+    embed.set_footer(text="⚔️ who will talk tanks next? 👁")
 
-    await inter.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
 @tank.command(name="adjust_score", description="adjust someone’s tank score")
 @app_commands.describe(
