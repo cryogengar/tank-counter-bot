@@ -319,13 +319,13 @@ async def status(inter: discord.Interaction):
     )
     await inter.response.send_message(msg)
 
-@tree.command(name="scores", description="show the tank talk leaderboard")
-async def tank_scores(interaction: discord.Interaction):
+@tank.command(name="scores", description="show the tank talk leaderboard")
+async def scores(inter: discord.Interaction):
     scores = load_scores()
     if not scores:
-        await interaction.response.send_message(
+        await inter.response.send_message(
             "no one has sinned by talking tanks yet.",
-            ephemeral=False
+            ephemeral=False,
         )
         return
 
@@ -333,14 +333,17 @@ async def tank_scores(interaction: discord.Interaction):
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
     medal_emojis = ["🥇", "🥈", "🥉"]
-    lines = []
+    lines: list[str] = []
 
     for idx, (user_id_str, count) in enumerate(sorted_scores):
         user_id = int(user_id_str)
-        member = interaction.guild.get_member(user_id)
+
+        # need guild to resolve members
+        assert inter.guild
+        member = inter.guild.get_member(user_id)
         if member is None:
             try:
-                member = await interaction.guild.fetch_member(user_id)
+                member = await inter.guild.fetch_member(user_id)
             except Exception:
                 member = None
 
@@ -353,13 +356,13 @@ async def tank_scores(interaction: discord.Interaction):
     description = "\n".join(lines)
 
     embed = discord.Embed(
-        title="🛡️ tank leaderboard 🛡️",
+        title="🛡️‎  tank leaderboard‎  🛡️",
         description=description,
-        colour=discord.Colour.dark_gray()
+        colour=discord.Colour.dark_gray(),
     )
     embed.set_footer(text="⚔️ who will talk tanks next? 👁")
 
-    await interaction.response.send_message(embed=embed)
+    await inter.response.send_message(embed=embed)
 
 @tank.command(name="adjust_score", description="adjust someone’s tank score")
 @app_commands.describe(
