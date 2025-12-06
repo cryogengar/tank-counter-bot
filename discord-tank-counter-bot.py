@@ -349,7 +349,7 @@ async def scores(inter: discord.Interaction):
                 member = None
 
         name = member.display_name if member else f"<@{user_id}>"
-        sin_word = "sin" if count == 1 else "sins"
+        sin_word = "time" if count == 1 else "times"
 
         lines.append(f"{medals[idx]} {name} has sinned **{count}** {sin_word}")
 
