@@ -337,8 +337,8 @@ async def tank_scores(inter: discord.Interaction):
     lines: list[str] = []
 
     # header + top divider
-    header = "🛡️ tank talk leaderboard 🛡️"
-    divider = "────────────────────"
+    header = "🛡️  **tank talk leaderboard**  🛡️"
+    divider = "⫘⫘⫘⫘⫘⫘⫘⫘⫘⫘"
     lines.append(header)
     lines.append(divider)
 
@@ -357,7 +357,7 @@ async def tank_scores(inter: discord.Interaction):
 
     # bottom divider + footer line
     lines.append(divider)
-    lines.append("👁 who will talk tanks next? 💥")
+    lines.append("🤫 who will talk tanks next? 👁️")
 
     embed = discord.Embed(
         description="\n".join(lines),
@@ -393,7 +393,7 @@ async def tank_adjustscore(inter: discord.Interaction, user: discord.User, delta
 
     sign = "+" if delta >= 0 else ""
     await inter.response.send_message(
-        f"✅ Adjusted {user.mention}'s tank score: **{old_value}** → **{new_value}** "
+        f"✅ adjusted {user.mention}'s tank score: **{old_value}** → **{new_value}** "
         f"(delta {sign}{delta}).",
         ephemeral=False,
     )
