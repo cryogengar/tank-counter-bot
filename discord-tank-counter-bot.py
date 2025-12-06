@@ -319,86 +319,52 @@ async def status(inter: discord.Interaction):
     )
     await inter.response.send_message(msg)
 
-@tank.command(name="scores", description="Show the tank talk leaderboard")
+@tank.command(name="scores", description="show the tank talk leaderboard")
 async def tank_scores(inter: discord.Interaction):
-    assert inter.guild
-
     scores = load_scores()
+
     if not scores:
         await inter.response.send_message(
-            "No one has confessed to talking about tanks yet.",
+            "nobody has triggered tank talk yet!",
             ephemeral=False,
         )
         return
 
-    # Build list: (display_name_or_mention, count, user_id)
-    entries: list[tuple[str, int, int]] = []
-    for user_id_str, count in scores.items():
-        user_id = int(user_id_str)
-        member = inter.guild.get_member(user_id)
-        if member is None:
-            try:
-                member = await inter.guild.fetch_member(user_id)
-            except Exception:
-                member = None
+    # sort by highest score first
+    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
-        # Prefer display name; fall back to a mention if we cannot fetch
-        name = member.display_name if member else f"<@{user_id}>"
-        entries.append((name, count, user_id))
+    medals = ["🥇", "🥈", "🥉"]
+    lines: list[str] = []
 
-    # Sort: highest score first, then alphabetical (case-insensitive) for ties
-    entries.sort(key=lambda x: (-x[1], x[0].lower()))
+    # header + top divider
+    header = "🛡️ tank talk leaderboard 🛡️"
+    divider = "────────────────────"
+    lines.append(header)
+    lines.append(divider)
 
-    lines = []
-    for index, (name, count, user_id) in enumerate(entries, start=1):
-        if index == 1:
-            rank_symbol = "🥇"
-        elif index == 2:
-            rank_symbol = "🥈"
-        elif index == 3:
-            rank_symbol = "🥉"
-        else:
-            rank_symbol = f"{index}."
+    for i, (user_id_str, count) in enumerate(sorted_scores):
+        medal = medals[i] if i < len(medals) else "🔹"
 
-        # Include both display name and a mention so it is clear who it is
-        mention = f"<@{user_id}>"
-        lines.append(f"{rank_symbol} **{name}** ({mention}) — {count} reset(s)")
+        user = await client.fetch_user(int(user_id_str))
+        display_name = user.display_name.lower()
 
-    leaderboard = "\n".join(lines)
-    await inter.response.send_message(
-        f"🛡️ **Tank Talk Leaderboard**\n{leaderboard}",
-        ephemeral=False,
-    )
+        # singular vs plural for “time(s)”
+        time_word = "time" if count == 1 else "times"
 
-@tank.command(name="setscore", description="Owner only: set a user's tank score to an exact value")
-@app_commands.describe(
-    user="The user whose score you want to change",
-    value="New score (0 or higher)",
-)
-async def tank_setscore(inter: discord.Interaction, user: discord.User, value: int):
-    # owner-only guard (same pattern as /resync)
-    app_info = await client.application_info()
-    if inter.user.id != app_info.owner.id:
-        await inter.response.send_message(
-            "Only the bot owner can use this command.",
-            ephemeral=True,
+        lines.append(
+            f"{medal} {display_name} // has sinned **{count}** {time_word}"
         )
-        return
 
-    if value < 0:
-        value = 0
+    # bottom divider + footer line
+    lines.append(divider)
+    lines.append("👁 who will talk tanks next? 💥")
 
-    scores = load_scores()
-    user_id_str = str(user.id)
-    old_value = scores.get(user_id_str, 0)
-    scores[user_id_str] = value
-    save_scores(scores)
-
-    await inter.response.send_message(
-        f"✅ Set {user.mention}'s tank score from **{old_value}** to **{value}**.",
-        ephemeral=False,
+    embed = discord.Embed(
+        description="\n".join(lines),
+        colour=discord.Colour.blue(),
     )
 
+    await inter.response.send_message(embed=embed)
 
 @tank.command(name="adjustscore", description="Owner only: add or subtract from a user's tank score")
 @app_commands.describe(
